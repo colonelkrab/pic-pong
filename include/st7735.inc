@@ -10,36 +10,59 @@
 #define ST7735_CASET 0x2a
 #define ST7735_RASET 0x2b
 #define ST7735_RAMWR 0x2c
+#define ST7735_MADCTL 0x36
+
+
+;16 bit color defines
+#define color_16_upper(r, g) ((((r) & (0xff << 3)) | ((g) >> 5)) | 0x0000)
+#define color_16_lower(g, b) (((g) << 3) & (0xff << 5)) | ((b) >> 3)
+#define color_16(r, g, b) (((color_16_upper((r), (g))) << 8) | color_16_lower((g), (b)))
 
 extern _st7735_spi_send_wreg_as_cmd, _st7735_spi_send_wreg_as_data, _delay_125ms
 
-__st7735_spi_init macro
-bcf TRISC, SDO
-bcf TRISC, SCK
-bcf TRISA, SS
-bcf TRISD, DCX
-bsf PORTA, SS
-bsf SSPSTAT, CKE; rising edge; idle low
-bsf SSPCON1, SSPEN
+__st7735_spi_init MACRO
+		bcf TRISC, SDO
+		bcf TRISC, SCK
+		bcf TRISA, SS
+		bcf TRISD, DCX
+		bsf PORTA, SS
+		bsf SSPSTAT, CKE; rising edge; idle low
+		bsf SSPCON1, SSPEN
 endm
 
-__st7735_send_cmd macro byte
-movlw byte
-call _st7735_spi_send_wreg_as_cmd
+__st7735_send_cmd MACRO byte
+		movlw byte
+		call _st7735_spi_send_wreg_as_cmd
 endm
 
-__st7735_send_data macro byte
-movlw byte
-call _st7735_spi_send_wreg_as_data
+__st7735_send_data MACRO byte
+		movlw byte
+		call _st7735_spi_send_wreg_as_data
 endm
 
-__st7735_init_sequence macro
-__st7735_send_cmd ST7735_SWRESET
-call _delay_125ms
-__st7735_send_cmd ST7735_SLPOUT
-call _delay_125ms
-__st7735_send_cmd ST7735_COLMOD
-__st7735_send_data 0x55
-__st7735_send_cmd ST7735_NORON
-__st7735_send_cmd ST7735_DISPON
+__st7735_init_sequence MACRO
+		__st7735_send_cmd ST7735_SWRESET
+		call _delay_125ms
+		__st7735_send_cmd ST7735_SLPOUT
+		call _delay_125ms
+		__st7735_send_cmd ST7735_COLMOD
+		__st7735_send_data 0x55 ; 16 bit colors
+		__st7735_send_cmd ST7735_MADCTL
+		__st7735_send_data 0x00 ; rgb mode
+		__st7735_send_cmd ST7735_NORON
+		__st7735_send_cmd ST7735_DISPON
 endm
+
+__st7735_set_window MACRO xs, xe, ys, ye
+		__st7735_send_cmd ST7735_CASET
+		__st7735_send_data 0x00
+		__st7735_send_data xs
+		__st7735_send_data 0x00
+		__st7735_send_data xe
+		__st7735_send_cmd ST7735_RASET
+		__st7735_send_data 0x00
+		__st7735_send_data ys
+		__st7735_send_data 0x00
+		__st7735_send_data ye
+endm
+
