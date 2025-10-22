@@ -33,4 +33,4 @@ clean:
 	rm -rf $(HEX) $(COF) $(OBJECTS) $(ERRFILES) $(LSTFILES)
 
 flash: $(HEX) 
-	pk2cmd -PPIC$(MCU) -M -Fout.hex -T -R
+	pk2cmd -PPIC$(MCU) -M -Fout.hex -W -R

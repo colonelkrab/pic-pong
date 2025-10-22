@@ -1,5 +1,9 @@
 #define DCX_PORT PORTD
 #define DCX RD4
+#define XS_MIN .1
+#define XE_MAX .130
+#define YS_MIN .1
+#define YE_MAX .160
 
 ; ST7735 COMMANDS
 #define ST7735_SWRESET 0x01 ;requires delay > 120ms
@@ -11,12 +15,14 @@
 #define ST7735_RASET 0x2b
 #define ST7735_RAMWR 0x2c
 #define ST7735_MADCTL 0x36
+#define ST7735_PWCTR1 0xc0
+#define ST7735_FRMCTR1 0xb1
 
 
 ;16 bit color defines
-#define color_16_upper(r, g) ((((r) & (0xff << 3)) | ((g) >> 5)) | 0x0000)
-#define color_16_lower(g, b) (((g) << 3) & (0xff << 5)) | ((b) >> 3)
-#define color_16(r, g, b) (((color_16_upper((r), (g))) << 8) | color_16_lower((g), (b)))
+#define COLOR_16_UPPER(r, g) ((((r) & (0xff << 3)) | ((g) >> 5)) & 0xffff)
+#define COLOR_16_LOWER(g, b) (((g) << 3) & (0xff << 5)) | ((b) >> 3)
+#define COLOR_16(r, g, b) (((COLOR_16_UPPER((r), (g))) << 8) | COLOR_16_LOWER((g), (b)))
 
 extern _st7735_spi_send_wreg_as_cmd, _st7735_spi_send_wreg_as_data, _delay_125ms
 
