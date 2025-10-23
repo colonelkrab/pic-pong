@@ -1,5 +1,5 @@
 #include <p18f452.inc>
-global _delay_125ms
+global _delay_125ms, _delay
 
 .DELAY_DATA udata
 		d0 res 1
@@ -29,5 +29,26 @@ global _delay_125ms
 		goto i
 
 	return
+	_delay:
+		movlw d'100'
+		movwf d0
+	di:
+		movlw d'100'
+		movwf d1
+	dj:
+		movlw d'2'
+		movwf d2
+	dk: 
+		decfsz d2,f
+		goto dk
+
+		decfsz d1,f
+		goto dj
+
+		decfsz d0,f
+		goto di
+
+	return
+
 end
 

@@ -5,7 +5,8 @@ global _st7735_spi_send_wreg_as_cmd, _st7735_spi_send_wreg_as_data
 
 .ST7735_SPI code
 	_st7735_spi_recieve_complete:
-		btfss SSPSTAT,BF
+		btfss PIR1,SSPIF
+		; btfss SSPSTAT,BF
 		goto _st7735_spi_recieve_complete
 	return
 
@@ -14,6 +15,7 @@ global _st7735_spi_send_wreg_as_cmd, _st7735_spi_send_wreg_as_data
 		bcf PORTA, SS
 		movwf SSPBUF
 		call _st7735_spi_recieve_complete
+		nop
 		bsf PORTA, SS
 	return
 
