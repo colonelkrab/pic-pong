@@ -41,9 +41,9 @@ global @st7735_fill_window
 	; fills _NROWS * _NCOLUMNS pixels in the selected window
 	@st7735_fill_window:
 		__st7735_send_cmd ST7735_RAMWR
-		movff 	@WINDOW_NROWS, @y
+		movff 	@WINDOW_NROWS, y
 	i:
-		movff 	@WINDOW_NCOLUMNS, @x
+		movff 	@WINDOW_NCOLUMNS, x
 	j:
 		movf 	@COLORU, w	
 		call 	@st7735_spi_send_wreg_as_data

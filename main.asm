@@ -1,7 +1,7 @@
 #include <p18f452.inc>
 #define F_CPU 24000000
- #include <include/uart.inc>
- #include <include/st7735.inc>
+#include <include/uart.inc>
+#include <include/st7735.inc>
 #include <include/st7735_graphics.inc>
 #define BALL_SIZE .3
 #define P1_Y .10
@@ -12,17 +12,23 @@ config OSC	= HS
 config WDT	= OFF
 config LVP	= OFF
 
+extern _delay
+extern _delay_125ms
+extern @WINDOW_XS, @WINDOW_XE, @WINDOW_YS, @WINDOW_YE
+extern @WINDOW_NCOLUMNS, @WINDOW_NROWS
+extern @COLORU, @COLORL
+extern @st7735_select_window
+extern @st7735_fill_window
+
 .GAME_DATA udata
-	@P1_X res 	1
-	@P2_X res 	1
-	@BALL_X res 	1
-	@BALL_Y res 	1
-	@BALL_DX res 	1
-	@BALL_DY res 	1
+	@P1_X res 1
+	@P2_X res 1
+	@BALL_X res 1
+	@BALL_Y res 1
+	@BALL_DX res 1
+	@BALL_DY res 1
+	collision_width res 1
 
-extern _st7735_fill_selected_window_with_color_reg, _st7735_select_window_using_window_regs, _COLOR_UPPER, _COLOR_LOWER, _SELECTED_WINDOW_ROWS
-
-extern _SELECTED_WINDOW_COLUMNS, WINDOW_XS, WINDOW_XE, WINDOW_YS, WINDOW_YE, _delay_125ms, _delay
 
 .RESET code 0x00
 		goto _main
@@ -41,22 +47,27 @@ extern _SELECTED_WINDOW_COLUMNS, WINDOW_XS, WINDOW_XE, WINDOW_YS, WINDOW_YE, _de
 
 		__st7735_fill_rect XS_MIN,YS_MIN,.1,SCREEN_HEIGHT,COLOR_16(255,255,255)
 		__st7735_fill_rect XE_MAX,YS_MIN,.1,SCREEN_HEIGHT,COLOR_16(255,255,255)
-	game_over:
+		movlw 	PLAYER_WIDTH + BALL_SIZE + .1
+		movwf 	collision_width
+		; goto $
+	_game_start:	
 		movlw 	.50
 		movwf 	@P1_X
+		movlw	.50
 		movwf 	@P2_X
-		movlw 	.1
-		movwf 	@BALL_DX
-		movwf 	@BALL_DY
-		movlw 	YE_MAX
-		movwf 	WINDOW_YE
-		movlw 	.50
+		movlw 	.55
 		movwf 	@BALL_X
 		movwf 	@BALL_Y
-		call 	_draw_frame
-	game_loop:
-		call 	_clear_frame
-		call 	_set_ball_pos
+		movlw 	.1
+		movwf 	@BALL_DX
+		movlw	.1
+		movwf 	@BALL_DY
+		movlw 	YE_MAX
+		movwf 	@WINDOW_YE
+		call 	@draw_frame
+	_game_loop:
+		call 	@clear_frame
+		call 	@set_ball_pos
 		; logic for moving player 1
 		movlw 	.1
 		cpfsgt 	@P1_X
@@ -70,21 +81,28 @@ extern _SELECTED_WINDOW_COLUMNS, WINDOW_XS, WINDOW_XE, WINDOW_YS, WINDOW_YE, _de
 		btfss 	LATD, RD2
 		incf 	@P1_X,f
 	skip_inc:
-		call 	_draw_frame
-		call _delay
-		goto 	game_loop
-
-			
-	goto $
+		movlw	YE_MAX - BALL_SIZE
+		cpfseq	@BALL_Y
+		bra	$+4
+		bra	_game_start		; p1 wins
+		movlw	YS_MIN
+		cpfseq 	@BALL_Y
+		bra	$+4
+		bra	_game_start		; p2 wins
+		call 	@draw_frame
+		call 	_delay
+		goto 	_game_loop
+;
+;
 	; Logic for ball bounce
-	_set_ball_pos:
+	@set_ball_pos:
 		;
 		; X
 		;
 		movlw 	XE_MAX - BALL_SIZE
 		cpfseq 	@BALL_X
 		bra 	$+4 			; branch to next condition
-		bra reverse_ball_x
+		bra 	reverse_ball_x
 		movlw 	XS_MIN + .1
 		cpfseq 	@BALL_X
 		bra 	set_ball_pos_x
@@ -99,32 +117,27 @@ extern _SELECTED_WINDOW_COLUMNS, WINDOW_XS, WINDOW_XE, WINDOW_YS, WINDOW_YE, _de
 		movlw 	P2_Y - BALL_SIZE
 		cpfslt 	@BALL_Y
 		; bra 	check_p2_collision
-		bra 	reverse_ball_y
+		bra	reverse_ball_y
 		movlw 	P1_Y + BALL_SIZE
 		cpfsgt 	@BALL_Y
-		bra 	reverse_ball_y
-		; bra check_p1_collision
+		bra 	check_p1_collision
+		; bra	reverse_ball_y
 		bra 	set_ball_pos_y
-	; check_p2_collision:
-	; p2_left:
-	; 	movf 	@P2_X, w
-	; 	cpfslt 	@BALL_X;
-	; 	bra	
-	; 	bra 	game_over
-	; 	movf P2_X,w
-	; 	addlw PLAYER_WIDTH -.1
-	; 	cpfslt B_X
-	; 	bra game_over
-	; 	bra reverse_ball_y
-	; check_p1_collision:
-	; 	movf P1_X,w
-	; 	cpfsgt B_X
-	; 	bra game_over
-	; 	movf P1_X,w
-	; 	addlw PLAYER_WIDTH -.1
-	; 	cpfslt B_X
-	; 	bra game_over
-	; 	bra reverse_ball_y
+	check_p2_collision:
+		; movf 	@P2_X, w
+		movlw	BALL_SIZE + .1
+		subwf	@P2_X, w
+		subwf	@BALL_X, w		; w = ballx - p2x
+		cpfsgt	collision_width		; skip if 20 > w
+		bra	set_ball_pos_y		; no collision
+		bra 	reverse_ball_y
+	check_p1_collision:
+		movlw	BALL_SIZE + .1
+		subwf	@P1_X, w
+		subwf	@BALL_X, w		; w = ballx - p2x
+		cpfsgt	collision_width		; skip if 20 > w
+		bra	set_ball_pos_y		; no collision
+		bra 	reverse_ball_y
 	reverse_ball_y:
 		negf 	@BALL_DY
 	set_ball_pos_y:
@@ -132,64 +145,63 @@ extern _SELECTED_WINDOW_COLUMNS, WINDOW_XS, WINDOW_XE, WINDOW_YS, WINDOW_YE, _de
 		addwf 	@BALL_Y, f
 	return
 
-	; _draw_players:
-	; 	;
-	; 	; PLAYER 1
-	; 	movf P1_X, w
-	; 	movwf WINDOW_XS
-	; 	addlw (PLAYER_WIDTH - .1)
-	; 	movwf WINDOW_XE
-	; 	movlw P1_Y
-	; 	movwf WINDOW_YS
-	; 	call _draw_player_common
-	; 	;
-	; 	; PLAYER 2
-	; 	movf P2_X, w
-	; 	movwf WINDOW_XS
-	; 	addlw (PLAYER_WIDTH - .1)
-	; 	movwf WINDOW_XE
-	; 	movlw P2_Y
-	; 	movwf WINDOW_YS
-	; 	call _draw_player_common
-	; return
-	;
-	; _draw_player_common:
-	; 	movlw PLAYER_WIDTH; width
-	; 	movwf _SELECTED_WINDOW_COLUMNS
-	; 	movlw PLAYER_HEIGHT; height
-	; 	movwf _SELECTED_WINDOW_ROWS
-	; 	call _st7735_select_window_using_window_regs
-	; 	call _st7735_fill_selected_window_with_color_reg
-	; return
+	@draw_players:
+		;
+		; PLAYER 1
+		movf 	@P1_X, w
+		movwf 	@WINDOW_XS
+		addlw 	PLAYER_WIDTH - .1
+		movwf 	@WINDOW_XE
+		movlw 	P1_Y
+		movwf 	@WINDOW_YS
+		call 	@draw_player_common
+		;
+		; PLAYER 2
+		movf 	@P2_X, w
+		movwf 	@WINDOW_XS
+		addlw 	PLAYER_WIDTH - .1
+		movwf 	@WINDOW_XE
+		movlw	P2_Y
+		movwf 	@WINDOW_YS
+		call 	@draw_player_common
+	return
 
-	_draw_ball:
+	@draw_player_common:
+		call 	@st7735_select_window
+		movlw 	PLAYER_WIDTH
+		movwf 	@WINDOW_NCOLUMNS
+		movlw 	PLAYER_HEIGHT
+		movwf 	@WINDOW_NROWS
+		call 	@st7735_fill_window
+	return
+
+	@draw_ball:
 		movf 	@BALL_X, w
-		movwf 	WINDOW_XS
-		addlw 	BALL_SIZE-.1
-		movwf 	WINDOW_XE
+		movwf 	@WINDOW_XS
+		addlw 	BALL_SIZE - .1
+		movwf 	@WINDOW_XE
 		movf 	@BALL_Y, w
-		movwf 	WINDOW_YS
+		movwf 	@WINDOW_YS
+		call 	@st7735_select_window
 		movlw 	BALL_SIZE
-		movwf 	_SELECTED_WINDOW_ROWS
-		movwf 	_SELECTED_WINDOW_COLUMNS
-		; movlw .2
-		call 	_st7735_select_window_using_window_regs
-		call 	_st7735_fill_selected_window_with_color_reg
+		movwf 	@WINDOW_NCOLUMNS
+		movwf 	@WINDOW_NROWS
+		call 	@st7735_fill_window
 	return
 
-	_draw_frame:
-		setf 	_COLOR_UPPER
-		setf 	_COLOR_LOWER
-		call 	_draw_ball
-		; call _draw_players
+	@draw_frame:
+		setf 	@COLORU
+		setf 	@COLORL
+		call 	@draw_ball
+		call 	@draw_players
 	return
 
-	_clear_frame:
-		clrf 	_COLOR_UPPER
-		clrf 	_COLOR_LOWER
-		call 	_draw_ball
-		; call _draw_players
+	@clear_frame:
+		clrf 	@COLORU
+		clrf 	@COLORL
+		call 	@draw_ball
+		call 	@draw_players
 	return
-
-		
+;
+;
 end

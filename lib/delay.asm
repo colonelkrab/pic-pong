@@ -33,7 +33,7 @@ global _delay_125ms, _delay
 		movlw d'100'
 		movwf d0
 	di:
-		movlw d'80'
+		movlw d'60'
 		movwf d1
 	dj:
 		movlw d'1'
