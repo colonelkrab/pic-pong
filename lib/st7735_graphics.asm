@@ -1,54 +1,58 @@
 #include <p18f452.inc>
 #include <include/st7735.inc>
 
-global _st7735_fill_selected_window_with_color_reg, _COLOR_UPPER, _COLOR_LOWER, _SELECTED_WINDOW_ROWS, 
-global _SELECTED_WINDOW_COLUMNS, WINDOW_XS, WINDOW_XE, WINDOW_YS, WINDOW_YE, _st7735_select_window_using_window_regs, 
+global @WINDOW_XS, @WINDOW_XE, @WINDOW_YS, @WINDOW_YE
+global @WINDOW_NCOLUMNS, @WINDOW_NROWS
+global @COLORU, @COLORL
+global @st7735_select_window
+global @st7735_fill_window
 
 .ST7735_GRAPHICS_DATA udata
-_COLOR_UPPER res 1
-_COLOR_LOWER res 1
-WINDOW_XS res 1
-WINDOW_XE res 1
-WINDOW_YS res 1
-WINDOW_YE res 1
-_SELECTED_WINDOW_ROWS res 1
-_SELECTED_WINDOW_COLUMNS res 1
-y res 1
-x res 1
+	@COLORU res 1
+	@COLORL res 1
+	@WINDOW_XS res 1
+	@WINDOW_XE res 1
+	@WINDOW_YS res 1
+	@WINDOW_YE res 1
+	@WINDOW_NCOLUMNS res 1
+	@WINDOW_NROWS res 1
+	y res 1
+	x res 1
 
 .ST7735_GRAPHICS code
-	;_XS _XE _YS _YE should be set before calling this
-	_st7735_select_window_using_window_regs:
+	; selects window based on values of _XS _XE _YS _YE registers
+	@st7735_select_window:
 		__st7735_send_cmd ST7735_CASET
 		__st7735_send_data 0x00
-		movf WINDOW_XS, w
-		call _st7735_spi_send_wreg_as_data
+		movf 	@WINDOW_XS, w
+		call 	@st7735_spi_send_wreg_as_data
 		__st7735_send_data 0x00
-		movf WINDOW_XE, w
-		call _st7735_spi_send_wreg_as_data
+		movf 	@WINDOW_XE, w
+		call 	@st7735_spi_send_wreg_as_data
 		__st7735_send_cmd ST7735_RASET
 		__st7735_send_data 0x00
-		movf WINDOW_YS, w
-		call _st7735_spi_send_wreg_as_data
+		movf 	@WINDOW_YS, w
+		call 	@st7735_spi_send_wreg_as_data
 		__st7735_send_data 0x00
-		movf WINDOW_YE, w
-		call _st7735_spi_send_wreg_as_data
+		movf 	@WINDOW_YE, w
+		call	@st7735_spi_send_wreg_as_data
 	return
 
-	_st7735_fill_selected_window_with_color_reg:
+	; fills _NROWS * _NCOLUMNS pixels in the selected window
+	@st7735_fill_window:
 		__st7735_send_cmd ST7735_RAMWR
-		movff _SELECTED_WINDOW_ROWS, y
+		movff 	@WINDOW_NROWS, @y
 	i:
-		movff _SELECTED_WINDOW_COLUMNS, x
+		movff 	@WINDOW_NCOLUMNS, @x
 	j:
-		movf _COLOR_UPPER, w	
-		call _st7735_spi_send_wreg_as_data
-		movf _COLOR_LOWER, w	
-		call _st7735_spi_send_wreg_as_data
-		decfsz x,f
-		goto j 
+		movf 	@COLORU, w	
+		call 	@st7735_spi_send_wreg_as_data
+		movf 	@COLORL, w	
+		call 	@st7735_spi_send_wreg_as_data
+		decfsz 	x, f
+		bra 	j 
 
-		decfsz y,f
-		goto i
+		decfsz 	y, f
+		bra 	i
 	return
 end
