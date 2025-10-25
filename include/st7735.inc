@@ -17,8 +17,6 @@
 #define ST7735_RASET 0x2b
 #define ST7735_RAMWR 0x2c
 #define ST7735_MADCTL 0x36
-#define ST7735_PWCTR1 0xc0
-#define ST7735_FRMCTR1 0xb1
 
 
 ;16 bit color defines
@@ -29,6 +27,7 @@
 extern @st7735_spi_send_wreg_as_cmd
 extern @st7735_spi_send_wreg_as_data
 extern _delay_125ms
+
 
 __st7735_spi_init MACRO
 		bcf 	TRISC, SDO
