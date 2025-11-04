@@ -2,12 +2,23 @@
 #include <include/uart.inc>
 #include <include/st7735.inc>
 #include <include/st7735_graphics.inc>
-#define F_CPU 		24000000
-#define BALL_SIZE 	.3
-#define P1_Y 		.10
-#define P2_Y 		.150
-#define PLAYER_WIDTH 	.20
-#define PLAYER_HEIGHT 	.2
+#define F_CPU 24000000
+#define BALL_SIZE .3
+#define P1_Y .10
+#define P2_Y .150
+#define PLAYER_WIDTH .20
+#define PLAYER_HEIGHT .2
+
+#define TRIS_PLAYERS
+#define LAT_PLAYERS
+#define PIN_P1_DECR
+#define PIN_P1_INCR
+#define PIN_P2_DECR
+#define PIN_P2_INCR
+#define TRIS_LED TRISD
+#define PORT_LED PORTD
+#define PIN_LED RD1
+
 config OSC = HS
 config WDT = OFF
 config LVP = OFF
@@ -21,82 +32,107 @@ extern @st7735_select_window
 extern @st7735_fill_window
 
 .GAME_DATA udata
-        @P1_X res 1
+        @P1_X res 1			; regsiters with x values of p1 and p2
         @P2_X res 1
-        @BALL_X	res 1
+        @BALL_X res 1			; registers which hold BALL x,y coordinates
         @BALL_Y res 1
-        @BALL_DX res 1
+        @BALL_DX res 1			; registers which hold direction of BALL
         @BALL_DY res 1
-        collision_width res 1
+	COLLISION_WIDTH res 1		; this is a constant required during comparision operations
+					; it is initialized at the start of code
 
 .RESET code 0x00
         goto 	_main
 
 .MAIN code
 	_main:
-        	clrf	TRISD
-	; setf PORTD
-        	bsf 	PORTD, RD1
+        	bcf	TRIS_LED, PIN_LED
+        	bsf 	PORT_LED, PIN_LED	
+
         	bsf 	TRISD, RD3
         	bsf 	TRISD, RD2
-	; bsf	PORTD, RD5
         	__st7735_spi_init
         	__st7735_init_sequence
         	__st7735_fill_screen COLOR_16(0, 0, 0)
-
         	__st7735_fill_rect XS_MIN, YS_MIN, .1, SCREEN_HEIGHT, COLOR_16(255, 255, 255)
         	__st7735_fill_rect XE_MAX, YS_MIN, .1, SCREEN_HEIGHT, COLOR_16(255, 255, 255)
+
         	movlw 	PLAYER_WIDTH + BALL_SIZE + .1
-        	movwf 	collision_width
-		; goto $
+        	movwf 	COLLISION_WIDTH
+
 	_game_start:
+
+	; Initialize game variables
         	movlw 	.50
         	movwf 	@P1_X
-	        movlw	.100
+        	movlw	.100
         	movwf 	@P2_X
         	movlw 	.55
         	movwf 	@BALL_X
         	movwf 	@BALL_Y
         	movlw 	.1
         	movwf 	@BALL_DX
-        	movlw	.1
+        	movlw 	.1
         	movwf 	@BALL_DY
         	movlw 	YE_MAX
-        	movwf 	@WINDOW_YE
+        	movwf 	@WINDOW_YE 			; this reg won't be written again
         	call 	@draw_frame
+
 	_game_loop:
         	call 	@clear_frame
-	; logic for moving player 1
-        	movlw 	.1
-        	cpfsgt 	@P1_X
-        	bra 	skip_dec
-        	btfss 	LATD, RD3
-        	decf 	@P1_X, f
-	skip_dec:
-        	movlw 	.110
-        	cpfslt 	@P1_X
-        	bra 	skip_inc
-        	btfss 	LATD, RD2
-        	incf 	@P1_X, f
-	skip_inc:
+		call	@set_player_pos
         	call 	@set_ball_pos
-        	movlw	YE_MAX - BALL_SIZE
-        	cpfseq	@BALL_Y
-        	bra	$+4
-        	bra	_game_start			; p1 wins
-        	movlw	YS_MIN
+		
+		; check if game over
+        	movlw 	YE_MAX - BALL_SIZE
         	cpfseq 	@BALL_Y
-        	bra	$+4
-        	bra	_game_start			; p2 wins
+        	bra 	$+4
+        	bra 	_game_start			; P1 wins
+        	movlw 	YS_MIN
+        	cpfseq 	@BALL_Y
+        	bra 	$+4
+        	bra 	_game_start			; P2 wins
+
+		; if game not over keep looping	
         	call 	@draw_frame
         	call 	_delay
         	goto 	_game_loop
 
+	@set_player_pos:
+
+	; logic for moving player 1
+	if_decr_p1:
+        	movlw 	XS_MIN
+        	cpfsgt 	@P1_X
+        	bra 	if_incr_p1
+        	btfss 	LAT_PLAYERS, P1_DECR
+        	decf 	@P1_X, f
+	if_incr_p1:
+        	movlw 	XE_MAX - PLAYER_WIDTH
+        	cpfslt 	@P1_X
+        	bra 	if_dec_p2
+        	btfss 	LAT_PLAYERS, P1_INCR
+        	incf 	@P1_X, f
+
+	; logic for moving player 2
+	if_dec_p2:
+		movlw 	XS_MIN
+        	cpfsgt 	@P2_X
+        	bra 	if_incr_p2
+        	btfss 	LAT_PLAYERS, P2_DECR
+        	decf 	@P2_X, f
+	if_incr_p2:
+        	movlw 	XE_MAX - PLAYER_WIDTH
+        	cpfslt 	@P2_X
+		return
+        	btfss 	LAT_PLAYERS, P2_INCR
+        	incf 	@P2_X, f
+	return
+
 	; Logic for ball bounce
 	@set_ball_pos:
 
-	; X
-
+	; Sets the X position of the ball
         	movlw 	XE_MAX - BALL_SIZE
         	cpfseq 	@BALL_X
         	bra 	$+4				; branch to next condition
@@ -110,31 +146,30 @@ extern @st7735_fill_window
         	movf 	@BALL_DX, w
         	addwf 	@BALL_X, f
 
-	; Y
-
+	; Sets the Y position of the ball
         	movlw 	P2_Y - BALL_SIZE
         	cpfseq 	@BALL_Y
-        	bra	$+4
+        	bra 	$+4
 		; bra 	check_p2_collision
-        	bra	reverse_ball_y
+        	bra 	reverse_ball_y
         	movlw 	P1_Y + PLAYER_HEIGHT
         	cpfseq 	@BALL_Y
         	bra 	set_ball_pos_y
 		; bra	reverse_ball_y
         	bra 	check_p1_collision
 	check_p2_collision:
-        	movlw	BALL_SIZE + .1
-        	subwf	@P2_X, w
-        	subwf	@BALL_X, w			; w = ballx - p2x
-        	cpfsgt	collision_width			; skip if 20 > w
-        	bra	set_ball_pos_y			; no collision
+        	movlw 	BALL_SIZE + .1
+        	subwf 	@P2_X, w
+        	subwf 	@BALL_X, w 			; w = ballx - p2x
+        	cpfsgt 	COLLISION_WIDTH 		; skip if 20 > w
+        	bra 	set_ball_pos_y 			; no collision
         	bra 	reverse_ball_y
 	check_p1_collision:
-        	movlw	BALL_SIZE + .1
-        	subwf	@P1_X, w
-        	subwf	@BALL_X, w			; w = ballx - p2x
-        	cpfsgt	collision_width			; skip if 20 > w
-        	bra	set_ball_pos_y			; no collision
+        	movlw 	BALL_SIZE + .1
+        	subwf 	@P1_X, w
+        	subwf 	@BALL_X, w			; w = ballx - p2x
+        	cpfsgt 	COLLISION_WIDTH			; skip if 20 > w
+        	bra 	set_ball_pos_y			; no collision
         	bra 	reverse_ball_y
 	reverse_ball_y:
         	negf 	@BALL_DY
@@ -143,25 +178,25 @@ extern @st7735_fill_window
         	addwf 	@BALL_Y, f
         return
 
-@draw_players:
+	@draw_players:
 
-; PLAYER 1
-        movf 	@P1_X, w
-        movwf 	@WINDOW_XS
-        addlw 	PLAYER_WIDTH - .1
-        movwf 	@WINDOW_XE
-        movlw 	P1_Y
-        movwf 	@WINDOW_YS
-        call 	@draw_player_common
+	; Draw player 1 
+        	movf 	@P1_X, w
+        	movwf 	@WINDOW_XS
+        	addlw 	PLAYER_WIDTH - .1
+        	movwf 	@WINDOW_XE
+        	movlw 	P1_Y
+        	movwf 	@WINDOW_YS
+        	call 	@draw_player_common
 
-; PLAYER 2
-        movf 	@P2_X, w
-        movwf 	@WINDOW_XS
-        addlw 	PLAYER_WIDTH - .1
-        movwf 	@WINDOW_XE
-        movlw	P2_Y
-        movwf 	@WINDOW_YS
-        call 	@draw_player_common
+	; Draw player 2
+        	movf 	@P2_X, w
+        	movwf 	@WINDOW_XS
+        	addlw 	PLAYER_WIDTH - .1
+        	movwf 	@WINDOW_XE
+        	movlw 	P2_Y
+        	movwf 	@WINDOW_YS
+        	call 	@draw_player_common
         return
 
 	@draw_player_common:
