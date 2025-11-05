@@ -9,12 +9,12 @@
 #define PLAYER_WIDTH .20
 #define PLAYER_HEIGHT .2
 
-#define TRIS_PLAYERS
-#define LAT_PLAYERS
-#define PIN_P1_DECR
-#define PIN_P1_INCR
-#define PIN_P2_DECR
-#define PIN_P2_INCR
+#define TRIS_PLAYERS TRISD
+#define LAT_PLAYERS LATD
+#define PIN_P1_DECR RD0
+#define PIN_P1_INCR RD2
+#define PIN_P2_DECR RD5
+#define PIN_P2_INCR RD7
 #define TRIS_LED TRISD
 #define PORT_LED PORTD
 #define PIN_LED RD1
@@ -48,9 +48,9 @@ extern @st7735_fill_window
 	_main:
         	bcf	TRIS_LED, PIN_LED
         	bsf 	PORT_LED, PIN_LED	
-
-        	bsf 	TRISD, RD3
-        	bsf 	TRISD, RD2
+		
+		movlw	(1<<PIN_P1_DECR) | (1<<PIN_P1_INCR) | (1<<PIN_P2_DECR) | (1<<PIN_P2_INCR)
+		movwf	TRIS_PLAYERS
         	__st7735_spi_init
         	__st7735_init_sequence
         	__st7735_fill_screen COLOR_16(0, 0, 0)
@@ -105,13 +105,13 @@ extern @st7735_fill_window
         	movlw 	XS_MIN
         	cpfsgt 	@P1_X
         	bra 	if_incr_p1
-        	btfss 	LAT_PLAYERS, P1_DECR
+        	btfss 	LAT_PLAYERS, PIN_P1_DECR
         	decf 	@P1_X, f
 	if_incr_p1:
         	movlw 	XE_MAX - PLAYER_WIDTH
         	cpfslt 	@P1_X
         	bra 	if_dec_p2
-        	btfss 	LAT_PLAYERS, P1_INCR
+        	btfss 	LAT_PLAYERS, PIN_P1_INCR
         	incf 	@P1_X, f
 
 	; logic for moving player 2
@@ -119,13 +119,13 @@ extern @st7735_fill_window
 		movlw 	XS_MIN
         	cpfsgt 	@P2_X
         	bra 	if_incr_p2
-        	btfss 	LAT_PLAYERS, P2_DECR
+        	btfss 	LAT_PLAYERS, PIN_P2_DECR
         	decf 	@P2_X, f
 	if_incr_p2:
         	movlw 	XE_MAX - PLAYER_WIDTH
         	cpfslt 	@P2_X
 		return
-        	btfss 	LAT_PLAYERS, P2_INCR
+        	btfss 	LAT_PLAYERS, PIN_P2_INCR
         	incf 	@P2_X, f
 	return
 
