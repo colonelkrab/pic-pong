@@ -49,8 +49,11 @@ extern @st7735_fill_window
         	bcf	TRIS_LED, PIN_LED
         	bsf 	PORT_LED, PIN_LED	
 		
-		movlw	(1<<PIN_P1_DECR) | (1<<PIN_P1_INCR) | (1<<PIN_P2_DECR) | (1<<PIN_P2_INCR)
-		movwf	TRIS_PLAYERS
+		bsf	TRIS_PLAYERS, PIN_P1_INCR
+		bsf	TRIS_PLAYERS, PIN_P1_DECR
+		bsf	TRIS_PLAYERS, PIN_P2_INCR
+		bsf	TRIS_PLAYERS, PIN_P2_DECR
+
         	__st7735_spi_init
         	__st7735_init_sequence
         	__st7735_fill_screen COLOR_16(0, 0, 0)
@@ -150,8 +153,8 @@ extern @st7735_fill_window
         	movlw 	P2_Y - BALL_SIZE
         	cpfseq 	@BALL_Y
         	bra 	$+4
-		; bra 	check_p2_collision
-        	bra 	reverse_ball_y
+		bra 	check_p2_collision
+        	; bra 	reverse_ball_y
         	movlw 	P1_Y + PLAYER_HEIGHT
         	cpfseq 	@BALL_Y
         	bra 	set_ball_pos_y
